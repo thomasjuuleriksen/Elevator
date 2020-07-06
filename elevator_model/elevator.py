@@ -8,7 +8,8 @@ MAX_FLOOR = 30
 
 
 class Elevator:
-    def __init__(self, name, speed: float, current_floor: int = 0, next_floor: int = 0):
+    def __init__(self, print_q, name, speed: float, current_floor: int = 0, next_floor: int = 0):
+        self.q = print_q
         self.name = name
         self.direction = Direction.still
         self.speed = speed
@@ -43,7 +44,7 @@ class Elevator:
                 if self.direction != Direction.still:
                     self.next_floor_reached = True
                     self.floor_flag.signal()
-                    print(f'Door {self.name} open at floor {self.current_floor}')
+                    self.q.put(f'Door {self.name} open at floor {self.current_floor}')
                     self.open_door()
                 else:
                     self.floor_flag.signal()
@@ -89,9 +90,8 @@ class Elevator:
             req_floor = self.floor_requested()   # check if a specific floor has been requested within the elevator
             if req_floor > 0:
                 self.floor_enq(req_floor)
-                print(
-                    f'{self.name} requested to floor {req_floor}, direction: {self.direction}. '
-                    f'UP: {self.queue_up}. DOWN: {self.queue_down}')
+                self.q.put(f'{self.name} requested to floor {req_floor}, moving {self.direction}. '
+                    f'UP queue: {self.queue_up}. DOWN queue: {self.queue_down}')
             self.floor_flag.wait()
             if self.next_floor_reached:    # dequeue the floor when reached
                 self.floor_deq(self.direction, self.next_floor)
