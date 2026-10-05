@@ -2,7 +2,7 @@ import time
 import random
 
 from direction.direction import Direction
-from semaphore.semaphore import Semaphore
+from threading import Lock
 
 MAX_FLOOR = 30
 
@@ -18,8 +18,8 @@ class Elevator:
         self.next_floor_reached = False
         self.queue_up = []
         self.queue_down = []
-        self.floor_flag = Semaphore()
-        self.queue_flag = Semaphore()
+        self.floor_flag = Lock()
+        self.queue_flag = Lock()
 
     def actuator(self):
         time.sleep(self.speed)
@@ -31,23 +31,24 @@ class Elevator:
 
     def elevator_movement(self):
         while True:
-            self.floor_flag.wait()
+            # Lock released before actuator/open_door so elevator_control can run during slow operations
+            self.floor_flag.acquire()
             if self.next_floor > self.current_floor:
                 self.current_floor += 1
-                self.floor_flag.signal()
+                self.floor_flag.release()
                 self.actuator()
             elif self.next_floor < self.current_floor:
                 self.current_floor -= 1
-                self.floor_flag.signal()
+                self.floor_flag.release()
                 self.actuator()
             else:
                 if self.direction != Direction.still:
                     self.next_floor_reached = True
-                    self.floor_flag.signal()
+                    self.floor_flag.release()
                     self.q.put(f'Door {self.name} open at floor {self.current_floor}')
                     self.open_door()
                 else:
-                    self.floor_flag.signal()
+                    self.floor_flag.release()
 
     def floor_requested(self):    # Emulates floor requests made inside a specific elevator
         if random.randint(1,200000) % 131313 == 0:
@@ -58,31 +59,27 @@ class Elevator:
 
     def floor_enq(self, floor):  # inserts a floor in queue_up or queue_down based on current floor and direction
         if not (floor in self.queue_up or floor in self.queue_down):
-            self.queue_flag.wait()
-            if (floor > self.current_floor) or \
-                    ((floor == self.current_floor) and (self.direction == Direction.down)):
-                # to be taken on the way up; add to queue_up
-                self.queue_up.append(floor)
-                self.queue_up.sort()
-            elif (floor < self.current_floor) or \
-                    ((floor == self.current_floor) and (self.direction == Direction.up)):
-                # to be taken on the way down; add to queue_down
-                self.queue_down.append(floor)
-                self.queue_down.sort(reverse=True)
-            else:
-                pass  # Ignore request for current floor when elevator is standing still
-            self.queue_flag.signal()
-        else:
-            pass  # Avoid duplicates in queues
+            with self.queue_flag:
+                if (floor > self.current_floor) or \
+                        ((floor == self.current_floor) and (self.direction == Direction.down)):
+                    # to be taken on the way up; add to queue_up
+                    self.queue_up.append(floor)
+                    self.queue_up.sort()
+                elif (floor < self.current_floor) or \
+                        ((floor == self.current_floor) and (self.direction == Direction.up)):
+                    # to be taken on the way down; add to queue_down
+                    self.queue_down.append(floor)
+                    self.queue_down.sort(reverse=True)
+                else:
+                    pass  # Ignore request for current floor when elevator is standing still
         return None
 
     def floor_deq(self, direction, floor):
-        self.queue_flag.wait()
-        if direction == Direction.up:
-            self.queue_up.remove(floor)
-        else:
-            self.queue_down.remove(floor)
-        self.queue_flag.signal()
+        with self.queue_flag:
+            if direction == Direction.up:
+                self.queue_up.remove(floor)
+            else:
+                self.queue_down.remove(floor)
         return None
 
     def elevator_control(self):   # manages self.queue_up/_down and controls self.next_floor for the elevator
@@ -92,26 +89,25 @@ class Elevator:
                 self.floor_enq(req_floor)
                 self.q.put(f'{self.name} requested to floor {req_floor}, moving {self.direction}. '
                     f'UP queue: {self.queue_up}. DOWN queue: {self.queue_down}')
-            self.floor_flag.wait()
-            if self.next_floor_reached:    # dequeue the floor when reached
-                self.floor_deq(self.direction, self.next_floor)
-                self.next_floor_reached = False
-            if self.direction in {Direction.up, Direction.still}:  # set next_floor
-                if len(self.queue_up) > 0:
-                    self.next_floor = self.queue_up[0]
-                    self.direction = Direction.up
-                elif len(self.queue_down) > 0:
-                    self.next_floor = self.queue_down[0]
-                    self.direction = Direction.down
-                else:
-                    self.direction = Direction.still
-            else:           # direction is down
-                if len(self.queue_down) > 0:
-                    self.next_floor = self.queue_down[0]
-                    self.direction = Direction.down
-                elif len(self.queue_up) > 0:
-                    self.next_floor = self.queue_up[0]
-                    self.direction = Direction.up
-                else:
-                    self.direction = Direction.still
-            self.floor_flag.signal()
+            with self.floor_flag:  # floor_flag always acquired before queue_flag (never reversed)
+                if self.next_floor_reached:    # dequeue the floor when reached
+                    self.floor_deq(self.direction, self.next_floor)
+                    self.next_floor_reached = False
+                if self.direction in {Direction.up, Direction.still}:  # set next_floor
+                    if len(self.queue_up) > 0:
+                        self.next_floor = self.queue_up[0]
+                        self.direction = Direction.up
+                    elif len(self.queue_down) > 0:
+                        self.next_floor = self.queue_down[0]
+                        self.direction = Direction.down
+                    else:
+                        self.direction = Direction.still
+                else:           # direction is down
+                    if len(self.queue_down) > 0:
+                        self.next_floor = self.queue_down[0]
+                        self.direction = Direction.down
+                    elif len(self.queue_up) > 0:
+                        self.next_floor = self.queue_up[0]
+                        self.direction = Direction.up
+                    else:
+                        self.direction = Direction.still
