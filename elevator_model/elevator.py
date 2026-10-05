@@ -86,7 +86,7 @@ class Elevator:
     def elevator_control(self):   # manages self.queue_up/_down and controls self.next_floor for the elevator
         while True:
             req_floor = self.floor_requested()   # check if a specific floor has been requested within the elevator
-            if req_floor > 0:
+            if req_floor >= 0:
                 self.floor_enq(req_floor)
                 self.q.put(f'{self.name} requested to floor {req_floor}, moving {self.direction}. '
                     f'UP queue: {self.queue_up}. DOWN queue: {self.queue_down}')

@@ -44,7 +44,6 @@ if __name__ == '__main__':
 
     for t in threads:
         t.join()
-    requested_q.join()
     print_p.join()
     elevator_request_p.join()
 
