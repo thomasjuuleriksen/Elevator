@@ -58,20 +58,21 @@ class Elevator:
         return floor
 
     def floor_enq(self, floor):  # inserts a floor in queue_up or queue_down based on current floor and direction
-        if not (floor in self.queue_up or floor in self.queue_down):
-            with self.queue_flag:
-                if (floor > self.current_floor) or \
-                        ((floor == self.current_floor) and (self.direction == Direction.down)):
-                    # to be taken on the way up; add to queue_up
-                    self.queue_up.append(floor)
-                    self.queue_up.sort()
-                elif (floor < self.current_floor) or \
-                        ((floor == self.current_floor) and (self.direction == Direction.up)):
-                    # to be taken on the way down; add to queue_down
-                    self.queue_down.append(floor)
-                    self.queue_down.sort(reverse=True)
-                else:
-                    pass  # Ignore request for current floor when elevator is standing still
+        with self.queue_flag:
+            if floor in self.queue_up or floor in self.queue_down:
+                return
+            if (floor > self.current_floor) or \
+                    ((floor == self.current_floor) and (self.direction == Direction.down)):
+                # to be taken on the way up; add to queue_up
+                self.queue_up.append(floor)
+                self.queue_up.sort()
+            elif (floor < self.current_floor) or \
+                    ((floor == self.current_floor) and (self.direction == Direction.up)):
+                # to be taken on the way down; add to queue_down
+                self.queue_down.append(floor)
+                self.queue_down.sort(reverse=True)
+            else:
+                pass  # Ignore request for current floor when elevator is standing still
         return None
 
     def floor_deq(self, direction, floor):
