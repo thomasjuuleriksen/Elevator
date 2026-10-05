@@ -41,7 +41,7 @@ if __name__ == '__main__':
     for t in threads:
         t.start()
 
-    for t in threads:
-        t.join()
-    print_p.join()
-    elevator_request_p.join()
+    elevator_request_p.join()   # wait until all floor requests have been issued
+    time.sleep(5)               # allow remaining elevator movement and output to flush
+    print_p.terminate()         # stop the print process
+    print_p.join()              # wait for clean exit
