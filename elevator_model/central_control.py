@@ -1,7 +1,7 @@
 from direction.direction import Direction
 
 
-def central_control(elevators, floor_q, print_q):    # dequeues from requested_queue and enqueues to a specific elevator's queue_up/_down
+def central_control(elevators, floor_q, print_q, logger=None):    # dequeues from requested_queue and enqueues to a specific elevator's queue_up/_down
     while True:
         floor = floor_q.get()      # blocks until a floor request arrives
         target_elevator = elevators[0]
@@ -20,5 +20,7 @@ def central_control(elevators, floor_q, print_q):    # dequeues from requested_q
                 elif abs(target_elevator.current_floor - floor) > abs(e.current_floor - floor):
                     target_elevator = e
         target_elevator.floor_enq(floor)
+        if logger:
+            logger.log(target_elevator.name, floor, target_elevator.direction.name, 'request')
         print_q.put(f'Elevator requested from floor {floor} added to {target_elevator.name}, moving {target_elevator.direction}. '
               f'UP queue: {target_elevator.queue_up}. DOWN queue: {target_elevator.queue_down}')

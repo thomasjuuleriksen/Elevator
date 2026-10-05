@@ -8,7 +8,7 @@ MAX_FLOOR = 30
 
 
 class Elevator:
-    def __init__(self, print_q, name, speed: float, current_floor: int = 0, next_floor: int = 0):
+    def __init__(self, print_q, name, speed: float, current_floor: int = 0, next_floor: int = 0, logger=None):
         self.q = print_q
         self.name = name
         self.direction = Direction.still
@@ -20,6 +20,7 @@ class Elevator:
         self.queue_down = []
         self.floor_flag = Lock()
         self.queue_flag = Lock()
+        self.logger = logger
 
     def actuator(self):
         time.sleep(self.speed)
@@ -36,23 +37,31 @@ class Elevator:
             if self.next_floor > self.current_floor:
                 self.current_floor += 1
                 self.floor_flag.release()
+                if self.logger:
+                    self.logger.log(self.name, self.current_floor, 'up', 'move')
                 self.actuator()
             elif self.next_floor < self.current_floor:
                 self.current_floor -= 1
                 self.floor_flag.release()
+                if self.logger:
+                    self.logger.log(self.name, self.current_floor, 'down', 'move')
                 self.actuator()
             else:
                 if self.direction != Direction.still:
                     self.next_floor_reached = True
                     self.floor_flag.release()
+                    if self.logger:
+                        self.logger.log(self.name, self.current_floor, self.direction.name, 'door_open')
                     self.q.put(f'Door {self.name} open at floor {self.current_floor}')
                     self.open_door()
+                    if self.logger:
+                        self.logger.log(self.name, self.current_floor, self.direction.name, 'door_close')
                 else:
                     self.floor_flag.release()
                     time.sleep(0.01)    # yield CPU while waiting for a destination
 
     def floor_requested(self):    # Emulates floor requests made inside a specific elevator
-        if random.randint(1,200000) % 131313 == 0:
+        if random.randint(1,20000) % 13131 == 0:
             floor = random.randint(0, MAX_FLOOR)
         else:
             floor = -1

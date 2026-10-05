@@ -1,0 +1,9 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Generated log files
+*.csv
+
+# Test output
+test_*.txt
