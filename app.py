@@ -17,8 +17,7 @@ def elevator_request_process(q):    # emulates a call for an elevator from a spe
 
 def print_process(q):
     while True:
-        if not q.empty():
-            print(q.get())
+        print(q.get())
 
 
 if __name__ == '__main__':
@@ -46,4 +45,3 @@ if __name__ == '__main__':
         t.join()
     print_p.join()
     elevator_request_p.join()
-
