@@ -49,6 +49,7 @@ class Elevator:
                     self.open_door()
                 else:
                     self.floor_flag.release()
+                    time.sleep(0.01)    # yield CPU while waiting for a destination
 
     def floor_requested(self):    # Emulates floor requests made inside a specific elevator
         if random.randint(1,200000) % 131313 == 0:
@@ -85,6 +86,7 @@ class Elevator:
 
     def elevator_control(self):   # manages self.queue_up/_down and controls self.next_floor for the elevator
         while True:
+            time.sleep(0.01)
             req_floor = self.floor_requested()   # check if a specific floor has been requested within the elevator
             if req_floor >= 0:
                 self.floor_enq(req_floor)
