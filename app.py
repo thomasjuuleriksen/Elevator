@@ -8,19 +8,58 @@ from direction.direction import Direction
 from elevator_model.elevator import Elevator
 from elevator_model import central_control
 from settings import (MAX_FLOOR, NUMBER_OF_ELEVATORS, ELEVATOR_NAMES, ELEVATOR_SPEEDS,
-                      DRAIN_POLL_S, DRAIN_TIMEOUT_S, OUTPUT_FLUSH_S)
-from test_settings import FLOOR_LIST_OUTSIDE_SET, FLOOR_LIST_OUTSIDE, FLOOR_REQUEST_OUTSIDE_INTERVAL
+                      DOOR_OPEN_TIME, POLL_INTERVAL_S, DRAIN_POLL_S, DRAIN_TIMEOUT_S, OUTPUT_FLUSH_S)
+from test_settings import (FLOOR_REQUEST_INSIDE_PROBABILITY, FLOOR_LIST_OUTSIDE_SET, FLOOR_LIST_OUTSIDE,
+                           FLOOR_REQUEST_OUTSIDE_INTERVAL)
+
+
+def is_whole(x):    # True for 3, False for 3.0, 0.5 and True (bool counts as int in Python)
+    return isinstance(x, int) and not isinstance(x, bool)
+
+
+def is_number(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
+def check_range(name, value):    # (low, high) of whole seconds; random.randint rejects fractions
+    if not (isinstance(value, (tuple, list)) and len(value) == 2 and all(is_whole(v) for v in value)):
+        return [f'{name} must be two whole numbers, e.g. (1, 2); got {value!r}']
+    low, high = value
+    if not 0 <= low <= high:
+        return [f'{name} must satisfy 0 <= low <= high; got {value!r}']
+    return []
 
 
 def check_settings():
     errors = []
+    if not (is_whole(MAX_FLOOR) and MAX_FLOOR >= 1):
+        errors.append(f'MAX_FLOOR must be a whole number >= 1; got {MAX_FLOOR!r}')
+    if not (is_whole(NUMBER_OF_ELEVATORS) and NUMBER_OF_ELEVATORS >= 1):
+        errors.append(f'NUMBER_OF_ELEVATORS must be a whole number >= 1; got {NUMBER_OF_ELEVATORS!r}')
     if not (NUMBER_OF_ELEVATORS == len(ELEVATOR_NAMES) == len(ELEVATOR_SPEEDS)):
         errors.append(f'NUMBER_OF_ELEVATORS is {NUMBER_OF_ELEVATORS}, but there are {len(ELEVATOR_NAMES)} '
                       f'ELEVATOR_NAMES and {len(ELEVATOR_SPEEDS)} ELEVATOR_SPEEDS')
-    if FLOOR_LIST_OUTSIDE_SET:
-        bad_floors = [f for f in FLOOR_LIST_OUTSIDE if f < 0 or f > MAX_FLOOR]
+    duplicates = sorted({n for n in ELEVATOR_NAMES if ELEVATOR_NAMES.count(n) > 1})
+    if duplicates:
+        errors.append(f'ELEVATOR_NAMES must be unique; repeated: {duplicates}')
+    bad_speeds = [s for s in ELEVATOR_SPEEDS if not (is_number(s) and s > 0)]
+    if bad_speeds:
+        errors.append(f'ELEVATOR_SPEEDS must all be numbers > 0; invalid: {bad_speeds}')
+    errors += check_range('DOOR_OPEN_TIME', DOOR_OPEN_TIME)
+    errors += check_range('FLOOR_REQUEST_OUTSIDE_INTERVAL', FLOOR_REQUEST_OUTSIDE_INTERVAL)
+    if not (is_whole(FLOOR_REQUEST_INSIDE_PROBABILITY) and FLOOR_REQUEST_INSIDE_PROBABILITY >= 1):
+        errors.append(f'FLOOR_REQUEST_INSIDE_PROBABILITY must be a whole number >= 1; '
+                      f'got {FLOOR_REQUEST_INSIDE_PROBABILITY!r}')
+    for name, value in (('POLL_INTERVAL_S', POLL_INTERVAL_S), ('DRAIN_POLL_S', DRAIN_POLL_S)):
+        if not (is_number(value) and value > 0):
+            errors.append(f'{name} must be a number > 0; got {value!r}')
+    for name, value in (('DRAIN_TIMEOUT_S', DRAIN_TIMEOUT_S), ('OUTPUT_FLUSH_S', OUTPUT_FLUSH_S)):
+        if not (is_number(value) and value >= 0):
+            errors.append(f'{name} must be a number >= 0; got {value!r}')
+    if FLOOR_LIST_OUTSIDE_SET and is_whole(MAX_FLOOR):
+        bad_floors = [f for f in FLOOR_LIST_OUTSIDE if not (is_whole(f) and 0 <= f <= MAX_FLOOR)]
         if bad_floors:
-            errors.append(f'FLOOR_LIST_OUTSIDE contains floors outside 0..{MAX_FLOOR}: {bad_floors}')
+            errors.append(f'FLOOR_LIST_OUTSIDE must contain whole numbers 0..{MAX_FLOOR}; invalid: {bad_floors}')
     return errors
 
 
