@@ -3,8 +3,8 @@ import random
 
 from direction.direction import Direction
 from threading import Lock
-
-MAX_FLOOR = 30
+from settings import MAX_FLOOR, DOOR_OPEN_TIME, POLL_INTERVAL_S
+from test_settings import FLOOR_REQUEST_INSIDE_PROBABILITY
 
 
 class Elevator:
@@ -26,7 +26,7 @@ class Elevator:
         return None
 
     def open_door(self):
-        time.sleep(random.randint(1, 2))
+        time.sleep(random.randint(*DOOR_OPEN_TIME))
         return None
 
     def elevator_movement(self):
@@ -49,14 +49,12 @@ class Elevator:
                     self.open_door()
                 else:
                     self.floor_flag.release()
-                    time.sleep(0.01)    # yield CPU while waiting for a destination
+                    time.sleep(POLL_INTERVAL_S)    # yield CPU while waiting for a destination
 
     def floor_requested(self):    # Emulates floor requests made inside a specific elevator
-        if random.randint(1,200000) % 131313 == 0:
-            floor = random.randint(0, MAX_FLOOR)
-        else:
-            floor = -1
-        return floor
+        if random.randint(1, FLOOR_REQUEST_INSIDE_PROBABILITY) == 1:
+            return random.randint(0, MAX_FLOOR)
+        return -1
 
     def floor_enq(self, floor):  # inserts a floor in queue_up or queue_down based on current floor and direction
         with self.queue_flag:
@@ -86,7 +84,7 @@ class Elevator:
 
     def elevator_control(self):   # manages self.queue_up/_down and controls self.next_floor for the elevator
         while True:
-            time.sleep(0.01)
+            time.sleep(POLL_INTERVAL_S)
             req_floor = self.floor_requested()   # check if a specific floor has been requested within the elevator
             if req_floor >= 0:
                 self.floor_enq(req_floor)
