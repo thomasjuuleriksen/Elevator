@@ -82,6 +82,21 @@ class Elevator:
                 self.queue_down.remove(floor)
         return None
 
+    def refile_passed_floors(self):    # caller must hold floor_flag
+        # A floor queued just ahead of the car can be passed before elevator_control updates next_floor;
+        # serve it on the way back instead of reversing for it.
+        with self.queue_flag:
+            if self.direction == Direction.up:
+                passed = [f for f in self.queue_up if f < self.current_floor]
+                for f in passed:
+                    self.queue_up.remove(f)
+                self.queue_down = sorted(self.queue_down + passed, reverse=True)
+            elif self.direction == Direction.down:
+                passed = [f for f in self.queue_down if f > self.current_floor]
+                for f in passed:
+                    self.queue_down.remove(f)
+                self.queue_up = sorted(self.queue_up + passed)
+
     def elevator_control(self):   # manages self.queue_up/_down and controls self.next_floor for the elevator
         while True:
             time.sleep(POLL_INTERVAL_S)
@@ -94,6 +109,7 @@ class Elevator:
                 if self.next_floor_reached:    # dequeue the floor when reached
                     self.floor_deq(self.direction, self.next_floor)
                     self.next_floor_reached = False
+                self.refile_passed_floors()
                 if self.direction in {Direction.up, Direction.still}:  # set next_floor
                     if len(self.queue_up) > 0:
                         self.next_floor = self.queue_up[0]
